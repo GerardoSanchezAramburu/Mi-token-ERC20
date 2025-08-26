@@ -1,0 +1,1 @@
+Este smart contract es una implementación personalizada del estándar ERC20, realicé este ejercicio práctico apoyándome de recursos, sirve como base para crear tokens en Ethereum o cualquier otra blockchain compatible con EVM.
