@@ -180,20 +180,19 @@ contract ERC20 is IERC20 {
 pragma solidity ^0.8.21;
 
 // Importa el contrato ERC20 desde otro archivo.
-
 import "./ERC20.sol";
 
 // Declaración de tu contrato que hereda de ERC20
 contract creaciondeToken is ERC20 {
 
- // Aquí se define el nombre del token ("Gerardo") y su símbolo ("Ge").
-    constructor() ERC20("Gerardo", "Ge") {}
+// Aquí se define el nombre del token ("Gerardo") y su símbolo ("Ge").
+   constructor() ERC20("Gerardo", "Ge") {}
 
-    // Función pública que cualquier persona puede llamar.
-    // Cada vez que alguien ejecute esta función, se crearán 2000 tokens nuevos.
+// Función pública que cualquier persona puede llamar.
+// Cada vez que alguien ejecute esta función, se crearán 2000 tokens nuevos.
     
-    function createTokens() public {
-        mint(msg.sender, 2000); // "mint" viene del ERC20 que importaste.
+function createTokens() public {
+ mint(msg.sender, 2000); // "mint" viene del ERC20 que importaste.
     }
 
 
