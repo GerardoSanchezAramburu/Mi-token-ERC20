@@ -1,0 +1,197 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+/// @title Implementación básica para un token ERC20. 
+/// @notice Este contrato funciona mediante el estándar ERC20 para crear tokens.
+/// @dev Hay ccomo mint y burn son internas para que se pueda  usarse desde herencia.
+interface IERC20 {
+    /// @notice Realiza la función de devuelve el total de tokens en circulación.
+    function totalSupply() external view returns (uint256);
+    /// @notice Nos devuelve el balance de una cuenta
+    function balanceOf(address account) external view returns (uint256);
+     /// @notice Realizar transferencia de tokens por de msg.sender a otra cuenta
+    function transfer(address to, uint256 amount) external returns (bool);
+    /// @notice Devuelve cuánto este autorizado para gastar un spender por owner.
+    function allowance(address owner, address spender) external view returns (uint256);
+    /// @notice Aprueba a otra dirección spender para gastar tokens en nombre de msg.sender.
+    function approve(address spender, uint256 amount) external returns (bool);
+    /// @notice Transferencia de tokens por autorización previa de owner hacia otra cuenta
+    function transferFrom(
+        address from,
+        address to,
+        uint256 amount
+    ) external returns (bool);
+    /// @notice evento se activa cuando se hace una transferencia (incluye mint y burn)
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    /// @notice Evento lanzado cuando un owner aprueba a un spender
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+}
+contract ERC20 is IERC20 {
+    mapping(address => uint256) private _balances; // Guarda el saldo de cada cuenta
+    mapping(address => mapping(address => uint256)) private _allowance; // Permiso  de gasto a: (owner -> spender -> cantidad)
+    uint256 private _totalSupply; // Cantidad de los tokens emitidos en circulación
+    string private _name;  // Nombre que se dará al token (ejemplo: "Gerardo Token")
+    string private _symbol; // Símbolo del token (ejemplo: "GER")
+    // Se ejecuta al desplegar el contrato
+    constructor(string memory name_, string memory symbol_) {
+        _name = name_;
+        _symbol = symbol_;
+    }
+    // Funciones públicas 
+    function name() public view virtual returns (string memory) {
+        return _name; // Devuelve el nombre del token
+    }
+    function symbol() public view virtual returns (string memory) {
+        return _symbol; // Devuelve el símbolo del token
+    }
+    function decimals() public view virtual returns (uint8) {
+        return 18; // Por estándar, la mayoría de tokens usan 18 decimales.
+    }
+    // Funciones principales del estándar ERC20
+    function totalSupply() public view virtual override returns (uint256) {
+        return _totalSupply; // Devuelve el total de tokens en circulación
+    }
+    function balanceOf(address account) public view virtual override returns (uint256) {
+        return _balances[account]; // Devuelve el saldo de una dirección
+    }
+    function transfer(address to, uint256 amount) public virtual override returns (bool) {
+        address owner = msg.sender;
+        _transfer(owner, to, amount); // Llama a la función interna
+        return true;
+    }
+    function allowance(address owner, address spender) public view virtual override returns (uint256) {
+        return _allowance[owner][spender]; // Devuelve cuánto puede gastar un spender autorizado
+    }
+    function approve(address spender, uint256 amount) public virtual override returns (bool) {
+        address owner = msg.sender;        
+        _approve(owner, spender, amount); // Guarda la autorización
+        return true;
+    }
+    function transferFrom(
+        address from,
+        address to,
+        uint256 amount
+    ) public virtual override returns (bool) {
+        address spender = msg.sender;
+        _spendAllowance(from, spender, amount);
+        _transfer(from, to, amount);  // Hace la transferencia real
+        return true;
+    }
+    function increaseAllowance(address spender, uint256 addedValue) public virtual returns (bool) {
+        address owner = msg.sender;
+        _approve(owner, spender, _allowance[owner][spender] + addedValue); // Suma más autorización
+        return true;   
+    }
+    function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
+        address owner = msg.sender;
+        uint256 currentAllowance = _allowance[owner][spender];
+        require(currentAllowance >= subtractedValue, "ERC20: decreased allowance below zero");
+        unchecked {
+            _approve(owner, spender, currentAllowance - subtractedValue); // Resta autorización
+        }
+        return true;
+    }
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal  virtual {
+        require(from != address(0), "ERC20: transfer from the zero address"); // No se puede enviar desde dirección 0
+        require(to != address(0), "ERC20: transfer to the zero address"); // No se puede enviar desde dirección 0
+        _beforeTokenTransfer(from, to, amount); // Hook opcional antes de transferir
+        uint256 fromBalance = _balances[from];
+        require(fromBalance >= amount, "ERC20: transfer amount exceeds balance"); // Verifica saldo suficiente
+        unchecked {
+            _balances[from] = fromBalance - amount; // Resta tokens al remitente
+        }
+        _balances[to] += amount; // Suma tokens al receptor
+        emit Transfer(from, to, amount); // Lanza evento Transfer
+        _afterTokenTransfer(from, to, amount); // Hook opcional después de transferi
+    }
+    function mint(address account, uint256 amount) internal virtual {
+        require(account != address(0), "ERC20: mint to the zero address");// No se pueden crear tokens en la dirección 0
+        _beforeTokenTransfer(address(0), account, amount);
+        _totalSupply += amount; // Incrementa el totalSupply
+        _balances[account] += amount; // Asigna tokens al receptor
+        emit Transfer(address(0), account, amount); // Evento Transfer desde address(0) → mint
+        _afterTokenTransfer(address(0), account, amount);
+    }
+    function burn(address account, uint256 amount) internal virtual {
+        require(account != address(0), "ERC20: burn from the zero address"); // No se pueden quemar tokens desde la dirección 0
+        _beforeTokenTransfer(account, address(0), amount);
+        uint256 accountBalance = _balances[account];
+        require(accountBalance >= amount, "ERC20: burn amount exceeds balance"); // Verifica que tenga tokens suficientes
+        unchecked {
+            _balances[account] = accountBalance - amount; // Resta los tokens
+        }
+        _totalSupply -= amount;
+        emit Transfer(account, address(0), amount); // Evento Transfer hacia address(0) → burn
+        _afterTokenTransfer(account, address(0), amount);
+    }
+
+    function _approve(
+        address owner,
+        address spender,
+        uint256 amount
+    ) internal virtual {
+        require(owner != address(0), "ERC20: approve from the zero address"); // Owner no puede ser address(0)
+        require(spender != address(0), "ERC20: approve to the zero address"); // Owner no puede ser address(0)
+        _allowance[owner][spender] = amount;  // Guarda la autorización
+        emit Approval(owner, spender, amount);  // Lanza evento Approval
+    }
+    function _spendAllowance(
+        address owner,
+        address spender,
+        uint256 amount
+    ) internal virtual {
+        uint256 currentAllowance = _allowance[owner][spender]; 
+        if (currentAllowance != type(uint256).max) {  // type(uint256).max = autorización infinita
+            require(currentAllowance >= amount, "ERC20: insufficient allowance");
+            unchecked {
+                _approve(owner, spender, currentAllowance - amount); // Resta del allowance
+            }
+        }
+    }
+//  Hooks se pueden sobrescribir en contratos hijos para añadir lógica extra
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal virtual {}
+
+    function _afterTokenTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal virtual {}
+
+
+}
+
+
+
+
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+// Importa el contrato ERC20 desde otro archivo.
+
+import "./ERC20.sol";
+
+// Declaración de tu contrato que hereda de ERC20
+contract creaciondeToken is ERC20 {
+
+ // Aquí se define el nombre del token ("Gerardo") y su símbolo ("Ge").
+    constructor() ERC20("Gerardo", "Ge") {}
+
+    // Función pública que cualquier persona puede llamar.
+    // Cada vez que alguien ejecute esta función, se crearán 2000 tokens nuevos.
+    
+    function createTokens() public {
+        mint(msg.sender, 2000); // "mint" viene del ERC20 que importaste.
+    }
+
+
+
+
+
+
