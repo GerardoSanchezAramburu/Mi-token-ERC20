@@ -1,17 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.21;
+
 /// @title Implementación básica para un token ERC20. 
 /// @notice Este contrato funciona mediante el estándar ERC20 para crear tokens.
 /// @dev Hay ccomo mint y burn son internas para que se pueda  usarse desde herencia.
+
 interface IERC20 {
     /// @notice Realiza la función de devuelve el total de tokens en circulación.
     function totalSupply() external view returns (uint256);
+
     /// @notice Nos devuelve el balance de una cuenta
     function balanceOf(address account) external view returns (uint256);
+
      /// @notice Realizar transferencia de tokens por de msg.sender a otra cuenta
     function transfer(address to, uint256 amount) external returns (bool);
+
     /// @notice Devuelve cuánto este autorizado para gastar un spender por owner.
     function allowance(address owner, address spender) external view returns (uint256);
+
     /// @notice Aprueba a otra dirección spender para gastar tokens en nombre de msg.sender.
     function approve(address spender, uint256 amount) external returns (bool);
     /// @notice Transferencia de tokens por autorización previa de owner hacia otra cuenta
